@@ -1,6 +1,9 @@
 # Multispectral Crop-Stress Diagnosis and Advisory Decision System
 
-**Smart India Hackathon 2025 · Problem ID SIH25099**
+🚀 **[Launch Live Application](https://crop-stress-advisor.streamlit.app/)**
+
+**Project:** Smart India Hackathon 2025  
+**Problem ID:** SIH25099
 
 A decision-support application that turns multispectral crop observations into vegetation
 indices, a cautious stress assessment with uncertainty, an explanation tied to the actual
