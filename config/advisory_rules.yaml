@@ -1,0 +1,254 @@
+# Advisory rules for the rule-based advisory engine (src/advisory/rule_engine.py).
+#
+# Each rule:
+#   id            unique identifier
+#   title         short heading
+#   categories    predicted categories the rule applies to, or [any]
+#   crops         crops the rule applies to, or [any]
+#   conditions    extra conditions; ALL must hold. Each is {fact, op, value}.
+#                 ops: <, <=, >, >=, ==, !=, in, not_in
+#   evidence      facts shown as the evidence that activated the rule
+#   severity      info | low | moderate | high
+#   priority      larger = shown first
+#   message       the advisory text
+#   verification  the recommended human verification step
+#   limitations   known limitations and exceptions
+#   source        reference, or a statement that the rule is illustrative
+#   illustrative  true when no authoritative crop-specific source backs the rule
+#
+# IMPORTANT: these rules never prescribe pesticides, fertiliser doses or other
+# treatments. They direct the user towards inspection and expert advice.
+
+rules:
+  - id: ADV-INC-02
+    title: "Re-acquire or repair the input data"
+    categories: [inconclusive]
+    conditions:
+      - {fact: valid_fraction, op: "<", value: 0.5}
+    evidence: [valid_fraction]
+    severity: moderate
+    priority: 95
+    message: >
+      Too few valid observations were available (cloud, shadow, nodata or
+      out-of-range values). No assessment of crop condition was made.
+    verification: >
+      Capture new imagery under clear, stable illumination, check that a
+      reflectance calibration panel was used, and confirm the nodata setting.
+    limitations: "Missing data says nothing about crop condition."
+    source: "Data-quality rule (system design)."
+    illustrative: false
+
+  - id: ADV-INC-01
+    title: "Assessment inconclusive - inspect before acting"
+    categories: [inconclusive]
+    evidence: [ndvi_mean, ndre_mean, valid_fraction]
+    severity: moderate
+    priority: 90
+    message: >
+      The system could not reach a reliable category for this sample. This is
+      not evidence that the crop is healthy or stressed.
+    verification: >
+      Visit the field and inspect the crop directly. If problems are seen,
+      consult a local agricultural extension officer or Krishi Vigyan Kendra (KVK).
+    limitations: "See the inconclusive reasons on the assessment page."
+    source: "Uncertainty-handling rule (system design)."
+    illustrative: false
+
+  - id: ADV-CONF-01
+    title: "Moderate confidence - treat the category as tentative"
+    categories: [any]
+    conditions:
+      - {fact: is_inconclusive, op: "==", value: false}
+      - {fact: confidence, op: "<", value: 0.75}
+    evidence: [confidence]
+    severity: low
+    priority: 85
+    message: >
+      The demonstration model's top probability is below 0.75. Other
+      categories remain plausible.
+    verification: "Check the probability table and confirm by field inspection."
+    limitations: "Probabilities come from a model fitted to synthetic data and are not calibrated for real fields."
+    source: "Uncertainty-handling rule (system design)."
+    illustrative: false
+
+  - id: ADV-SEV-01
+    title: "Areas of very low vigour present - prioritise inspection"
+    categories: [water_stress, nutrient_stress, pest_stress, disease_stress]
+    conditions:
+      - {fact: ndvi_p10, op: "<", value: 0.45}
+    evidence: [ndvi_p10, low_vigor_fraction]
+    severity: high
+    priority: 80
+    message: >
+      At least 10% of the plot has NDVI below 0.45, meaning some areas have
+      clearly weaker green cover than the rest. Visit these areas first.
+    verification: "Use the NDVI map to locate the weakest areas and inspect them on the ground."
+    limitations: >
+      Low NDVI can also come from gaps in planting, field edges, bunds, weeds
+      removed recently, or early growth stages.
+    source: "Illustrative rule - threshold is generic and not crop-calibrated."
+    illustrative: true
+
+  - id: ADV-WATER-01
+    title: "Review irrigation and soil-moisture conditions"
+    categories: [water_stress]
+    evidence: [ndvi_mean, savi_mean, ndre_ndvi_ratio]
+    severity: moderate
+    priority: 70
+    message: >
+      Vigour is reduced fairly uniformly without a strong chlorophyll-specific
+      signal, a pattern that can be consistent with water deficit.
+    verification: >
+      Check recent irrigation and rainfall records, examine soil moisture at
+      root depth (hand-feel method, tensiometer or moisture sensor), and look
+      for leaf rolling or wilting during the hottest part of the day.
+    limitations: >
+      Multispectral indices alone cannot confirm water stress; thermal imagery
+      or soil-moisture measurements are much more specific. Root damage,
+      salinity and nutrient problems can look similar.
+    source: >
+      General irrigation-scheduling principles: Allen, R.G., Pereira, L.S.,
+      Raes, D., Smith, M. (1998). Crop evapotranspiration. FAO Irrigation and
+      Drainage Paper 56. The mapping from indices to this advice is illustrative.
+    illustrative: true
+
+  - id: ADV-NUTR-01
+    title: "Check nutrient-management records before any fertiliser decision"
+    categories: [nutrient_stress]
+    evidence: [ndre_mean, gndvi_mean, ndre_ndvi_ratio]
+    severity: moderate
+    priority: 70
+    message: >
+      The chlorophyll-sensitive indices (NDRE, GNDVI) are low relative to NDVI,
+      a pattern that can be consistent with reduced leaf chlorophyll, for
+      example from nitrogen deficiency.
+    verification: >
+      Review fertiliser application records, compare with a known healthy
+      reference strip, and confirm with a leaf-colour chart, chlorophyll meter,
+      or soil/plant-tissue testing. Ask a qualified agronomist before changing
+      fertiliser plans.
+    limitations: >
+      Chlorosis also results from waterlogging, disease, sulphur/iron/magnesium
+      deficiency, varietal differences and senescence. No fertiliser type or
+      dose can be derived from this output.
+    source: "Illustrative rule - requires crop-specific expert review."
+    illustrative: true
+
+  - id: ADV-NUTR-02
+    title: "Leaf-colour-chart check for cereals"
+    categories: [nutrient_stress]
+    crops: [rice, maize, wheat]
+    evidence: [ndre_ndvi_ratio]
+    severity: low
+    priority: 65
+    message: >
+      For rice, maize and wheat, a leaf colour chart (LCC) is a low-cost field
+      tool for judging nitrogen status.
+    verification: "Follow the LCC procedure recommended by your local agricultural university or extension service."
+    limitations: "LCC readings depend on variety and lighting; use local calibration."
+    source: >
+      Leaf colour charts are promoted for nitrogen management by IRRI and Indian
+      agricultural institutions; confirm the current local recommendation.
+    illustrative: true
+
+  - id: ADV-PEST-01
+    title: "Scout weak patches for pests"
+    categories: [pest_stress]
+    evidence: [ndvi_std, ndvi_p10, low_vigor_fraction, ndre_ndvi_ratio]
+    severity: moderate
+    priority: 75
+    message: >
+      The canopy is patchy and the weak patches resemble exposed soil, a
+      pattern that can be consistent with defoliation by insects or other
+      causes of canopy loss.
+    verification: >
+      Walk the weak patches and inspect leaves, stems and the soil surface for
+      insects, feeding damage and frass. Have the pest identified by an
+      extension officer or KVK before deciding on any control measure.
+    limitations: >
+      Patchiness can also come from uneven sowing, waterlogging, lodging,
+      animal damage or machinery. The system cannot identify a pest species,
+      and no pesticide should be chosen from this output.
+    source: "Illustrative rule - requires entomologist/agronomist review."
+    illustrative: true
+
+  - id: ADV-DIS-01
+    title: "Inspect symptomatic foci for disease"
+    categories: [disease_stress]
+    evidence: [ndvi_std, ndvi_p10, ndre_ndvi_ratio]
+    severity: moderate
+    priority: 75
+    message: >
+      The canopy shows clustered areas of reduced vigour with a chlorosis-like
+      signature, a pattern that can be consistent with disease foci.
+    verification: >
+      Inspect plants in the affected areas for spots, lesions, mould, wilting
+      or discolouration. If disease is suspected, collect samples for
+      laboratory diagnosis through a plant-health clinic or KVK. Limit
+      movement from affected to healthy areas until it is identified.
+    limitations: >
+      The system cannot identify a pathogen. Nutrient deficiency, herbicide
+      injury and water stress can produce similar patterns. No fungicide or
+      other treatment should be chosen from this output.
+    source: "Illustrative rule - requires plant-pathologist review."
+    illustrative: true
+
+  - id: ADV-PATCH-01
+    title: "Spatially clustered variation detected"
+    categories: [any]
+    conditions:
+      - {fact: ndvi_std, op: ">=", value: 0.08}
+    evidence: [ndvi_std]
+    severity: low
+    priority: 60
+    message: >
+      NDVI varies strongly within the plot. Map the weak zones and visit them
+      first; management zones may be warranted.
+    verification: "Compare the NDVI map with field layout (drainage lines, bunds, sowing direction)."
+    limitations: "Spatial variation is not necessarily stress; soil and topography also cause it."
+    source: "Illustrative rule - generic precision-agriculture practice."
+    illustrative: true
+
+  - id: ADV-HEALTHY-01
+    title: "No stress signal detected - continue routine monitoring"
+    categories: [healthy]
+    evidence: [ndvi_mean, ndre_ndvi_ratio, ndvi_std]
+    severity: info
+    priority: 50
+    message: >
+      Vigour is high and uniform and the chlorophyll signal is normal for the
+      demonstration reference. Keep following the regular crop-management plan.
+    verification: "Continue routine scouting; spectral data can miss early or below-canopy problems."
+    limitations: "A 'healthy' result does not rule out early-stage pests or disease."
+    source: "Illustrative rule."
+    illustrative: true
+
+  - id: ADV-QUAL-01
+    title: "Data-quality warnings present"
+    categories: [any]
+    conditions:
+      - {fact: n_quality_warnings, op: ">=", value: 1}
+    evidence: [n_quality_warnings, valid_fraction]
+    severity: info
+    priority: 40
+    message: "The input produced data-quality warnings that may affect the result."
+    verification: "Read the warnings on the Data Input and Assessment pages."
+    limitations: "-"
+    source: "Data-quality rule (system design)."
+    illustrative: false
+
+  - id: ADV-GEN-01
+    title: "Human verification required"
+    categories: [any]
+    evidence: [classifier_mode]
+    severity: info
+    priority: 10
+    message: >
+      This is a decision-support output from a demonstration system. It is not
+      a validated agronomic diagnosis.
+    verification: >
+      Confirm any finding in the field and consult a qualified agricultural
+      expert before taking management action.
+    limitations: "Applies to every result produced by this system."
+    source: "Responsible-use policy of this project."
+    illustrative: false

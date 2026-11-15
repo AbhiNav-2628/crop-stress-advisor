@@ -1,0 +1,71 @@
+{
+  "seed": 2025,
+  "synthetic": true,
+  "files": [
+    {
+      "file": "plot_healthy.tif",
+      "description": "Synthetic 64x64 plot, scenario 'healthy', bands B,G,R,RE,NIR, float reflectance",
+      "expected_outcome": "healthy"
+    },
+    {
+      "file": "plot_water_stress.tif",
+      "description": "Synthetic 64x64 plot, scenario 'water_stress', bands B,G,R,RE,NIR, float reflectance",
+      "expected_outcome": "water_stress"
+    },
+    {
+      "file": "plot_nutrient_stress.tif",
+      "description": "Synthetic 64x64 plot, scenario 'nutrient_stress', bands B,G,R,RE,NIR, float reflectance",
+      "expected_outcome": "nutrient_stress"
+    },
+    {
+      "file": "plot_pest_stress.tif",
+      "description": "Synthetic 64x64 plot, scenario 'pest_stress', bands B,G,R,RE,NIR, float reflectance",
+      "expected_outcome": "pest_stress"
+    },
+    {
+      "file": "plot_disease_stress.tif",
+      "description": "Synthetic 64x64 plot, scenario 'disease_stress', bands B,G,R,RE,NIR, float reflectance",
+      "expected_outcome": "disease_stress"
+    },
+    {
+      "file": "plot_mild_ambiguous.tif",
+      "description": "Very mild synthetic water-stress plot (severity 0.15)",
+      "expected_outcome": "may be inconclusive or confused with healthy - shows uncertainty handling"
+    },
+    {
+      "file": "plot_cloud_masked.tif",
+      "description": "Healthy synthetic plot with ~60% of pixels set to nodata",
+      "expected_outcome": "inconclusive (too few valid pixels)"
+    },
+    {
+      "file": "plot_bare_soil.tif",
+      "description": "Synthetic bare-soil surface",
+      "expected_outcome": "inconclusive (non-crop surface)"
+    },
+    {
+      "file": "plot_nutrient_stress_uint16_x10000.tif",
+      "description": "Nutrient scenario stored as uint16 reflectance x 10000 (nodata 0)",
+      "expected_outcome": "validation error until the scale factor is set to 10000, then nutrient_stress"
+    },
+    {
+      "file": "bands/water_stress_<band>.tif",
+      "description": "Water-stress plot as five single-band GeoTIFFs",
+      "expected_outcome": "water_stress (use the 'Separate band files' input)"
+    },
+    {
+      "file": "demo_points.csv",
+      "description": "80 synthetic pixel spectra per plot for 5 plots, grouped by sample_id",
+      "expected_outcome": "one assessment per sample_id"
+    },
+    {
+      "file": "demo_points_no_red_edge.csv",
+      "description": "demo_points.csv without the red_edge column",
+      "expected_outcome": "NDVI/GNDVI/SAVI/EVI calculated; NDRE skipped; classification inconclusive"
+    },
+    {
+      "file": "invalid/*",
+      "description": "Malformed inputs",
+      "expected_outcome": "clear validation error"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Exact versions verified with Python 3.13 on Windows 11 (see docs/test_results.md).
+streamlit==1.66.1      # web application
+numpy==2.5.4           # array maths, index calculations, model inference
+pandas==3.1.0          # tables and CSV input
+scikit-learn==1.9.1    # evaluation metrics; optional training script
+plotly==7.1.0          # interactive charts and raster maps
+PyYAML==6.0.3          # configuration and advisory rules
+tifffile==2026.10.15   # lightweight GeoTIFF reader/writer (no GDAL needed)
+fpdf2==2.8.9           # PDF report export
+pytest==9.1.1          # automated tests

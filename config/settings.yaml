@@ -1,0 +1,105 @@
+# Main configuration for the Crop-Stress Diagnosis and Advisory System.
+# Every threshold used by the pipeline lives here so it can be reviewed and
+# changed without editing Python code.
+
+project:
+  name: "Multispectral Crop-Stress Diagnosis and Advisory Decision System"
+  short_name: "CropStress Advisor"
+  problem_id: "SIH25099"
+  event: "Smart India Hackathon 2025"
+
+# The five spectral bands the pipeline understands. Order here is the
+# internal order used everywhere in the code.
+bands: ["blue", "green", "red", "red_edge", "nir"]
+
+reflectance:
+  # Inputs must be surface reflectance in the range 0-1 after scaling.
+  # Pixels outside [min_valid, max_valid] are masked as invalid.
+  min_valid: 0.0
+  max_valid: 1.2
+  # If the 99th percentile of any band is above this value, the data almost
+  # certainly holds digital numbers (DN) rather than reflectance.
+  dn_detection_threshold: 1.5
+
+indices:
+  savi_l: 0.5            # SAVI soil-brightness correction factor (Huete, 1988)
+  # A pixel with |denominator| below this is treated as undefined (NaN).
+  min_denominator: 1.0e-6
+  # NDVI below this value counts as "low vigor" for the low_vigor_fraction feature.
+  low_vigor_ndvi: 0.5
+
+quality:
+  # Fraction of valid pixels required before a classification is attempted.
+  min_valid_fraction: 0.5
+  # Fewer observations than this means spatial features (std, percentiles)
+  # are unreliable and a warning is raised.
+  min_observations_for_spatial_stats: 25
+  # A plot whose mean NDVI is below this is probably bare soil, water or a
+  # non-crop surface, which the system does not support.
+  min_canopy_ndvi: 0.3
+
+uncertainty:
+  # Predictions with a top-class probability below this become "inconclusive".
+  min_confidence: 0.6
+  # Minimum gap between the best and second-best probability.
+  min_margin: 0.15
+  # Features further than this many training standard deviations from the
+  # training mean are considered out-of-distribution.
+  max_abs_zscore: 4.0
+
+model:
+  artifact_path: "models/demo_logreg_v1.json"
+  metrics_path: "models/demo_logreg_v1_metrics.json"
+  default_mode: "ml_demo"      # "ml_demo" or "rule_based"
+
+# Output categories. "inconclusive" is never predicted by a model directly;
+# it is assigned by the uncertainty and quality checks.
+categories:
+  healthy: "Healthy / no stress detected"
+  water_stress: "Potential water stress"
+  nutrient_stress: "Potential nutrient-related stress"
+  pest_stress: "Potential pest-associated stress"
+  disease_stress: "Potential disease-associated stress"
+  inconclusive: "Inconclusive / unsupported"
+
+# Thresholds for the transparent rule-based classifier (decision list).
+# They were chosen by inspecting feature distributions of the synthetic
+# demonstration data (see scripts/train_demo_model.py output). They are NOT
+# agronomically calibrated for any crop.
+rule_classifier:
+  version: "rules-1.0"
+  # Rules are checked in this order; the first one whose conditions all hold wins.
+  patchy_min_ndvi_std: 0.035          # spatially patchy canopy
+  patchy_min_low_vigor_fraction: 0.10 # or a sizeable share of low-vigour pixels
+  pest_min_ndre_ratio: 0.311          # patchy + exposed soil (raises NDRE/NDVI) -> pest-like
+  healthy_min_ndvi: 0.72
+  healthy_min_ndre_ratio: 0.28
+  nutrient_max_ndre_ratio: 0.27       # chlorophyll signal low relative to biomass
+  water_max_ndvi: 0.72                # uniform vigour loss without the chlorophyll signature
+
+# Band order presets offered in the app for multiband rasters (1-based).
+# Always confirm against your sensor or export documentation.
+band_presets:
+  "Bundled demo files (B, G, R, RE, NIR)":
+    blue: 1
+    green: 2
+    red: 3
+    red_edge: 4
+    nir: 5
+  "MicaSense RedEdge-style stack (B, G, R, NIR, RE)":
+    blue: 1
+    green: 2
+    red: 3
+    nir: 4
+    red_edge: 5
+
+# Accepted CSV column names (case-insensitive) for each band.
+csv_aliases:
+  blue: ["blue", "b", "band_blue", "b2"]
+  green: ["green", "g", "band_green", "b3"]
+  red: ["red", "r", "band_red", "b4"]
+  red_edge: ["red_edge", "rededge", "re", "band_red_edge", "b5"]
+  nir: ["nir", "near_infrared", "band_nir", "b8"]
+  sample_id: ["sample_id", "plot_id", "plot", "sample", "zone_id"]
+
+crops: ["generic", "rice", "wheat", "maize", "cotton", "sugarcane", "pulses"]
