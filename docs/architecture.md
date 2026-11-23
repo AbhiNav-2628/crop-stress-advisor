@@ -19,12 +19,12 @@
         ▼                                                                                                │
  src/models/inference.py   predict_with_uncertainty()                                                    │
         │   1. quality blockers (valid %, missing features, non-crop) ── fail → inconclusive             │
-        │   2. classifier.predict()  ← LogisticRegressionClassifier (models/*.json) or RuleBasedClassifier│
+        │   2. classifier.predict()  ← CNNStressClassifier, LogisticRegressionClassifier, RuleBasedClassifier│
         │   3. confidence / margin / out-of-distribution checks ─────── fail → inconclusive              │
         ▼                                                                                                │
    Prediction(category, raw_category, confidence, probabilities, reasons, explanation, classifier info)  │
         │                                                                                                │
-        ├──► src/explainability/explanations.py  explain_prediction() → contributions or rule trace      │
+        ├──► src/explainability/explanations.py  explain_prediction() → saliency, contributions, Grad-CAM │
         │                                                                                                │
         └──► src/advisory/rule_engine.py  build_facts() → evaluate_rules(config/advisory_rules.yaml)     │
                                                                                                          │
@@ -42,8 +42,10 @@
 | `src/features/vegetation_indices.py` | Index formulas, `safe_divide` | NumPy |
 | `src/features/feature_engineering.py` | `FEATURE_ORDER`, `extract_features`, index statistics | NumPy, pandas |
 | `src/models/classifier.py` | `StressClassifier` interface, logistic and rule classifiers | features |
+| `src/models/cnn_model.py` | PyTorch 1D & 2D Convolutional Neural Network architectures + Grad-CAM | PyTorch |
+| `src/models/cnn_classifier.py` | `CNNStressClassifier`, saliency attributions, raster diagnosis | PyTorch, NumPy |
 | `src/models/artifacts.py` | JSON model load/validate/save | features |
-| `src/models/inference.py` | Choose classifier (with fallback), uncertainty gating | classifier, artifacts |
+| `src/models/inference.py` | Choose classifier (CNN, ML, rules with fallback), uncertainty gating | classifier, artifacts |
 | `src/models/evaluation.py` | Metrics (accuracy, P/R/F1, confusion, coverage) | scikit-learn |
 | `src/explainability/explanations.py` | Human-readable explanation dictionary | inference |
 | `src/advisory/rule_engine.py` | Facts, rule validation, matching, ordering | - |

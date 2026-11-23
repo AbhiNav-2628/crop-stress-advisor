@@ -36,7 +36,7 @@ def test_pages_show_empty_state_before_data():
         assert any("No data loaded" in i.value for i in app.info)
 
 
-@pytest.mark.parametrize("mode", ["ml_demo", "rule_based"])
+@pytest.mark.parametrize("mode", ["ml_demo", "cnn_deep_learning", "rule_based"])
 def test_full_demo_workflow(mode):
     app = new_app()
     app.sidebar.selectbox(key="mode").set_value(mode).run()

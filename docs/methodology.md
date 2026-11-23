@@ -81,6 +81,15 @@ the synthetic feature distributions):
 Rationale for R1 vs R2: exposed soil raises NDRE/NDVI (soil NDRE/NDVI ≈ 0.5), whereas chlorotic
 lesions lower it. This holds in the synthetic model. Whether it holds in real fields is untested.
 
+### 5.3 Deep Learning Convolutional Neural Network (CNN)
+- `scripts/train_cnn_model.py`: trains dual PyTorch architectures:
+  - **1D Feature CNN**: 3 Conv1d blocks with BatchNorm1d, LeakyReLU, and AdaptiveAvgPool1d extracting non-linear combinations of biophysical vegetation indices and spatial variability features.
+  - **2D Spatial CNN**: 3 Conv2d blocks with BatchNorm2d, ReLU, MaxPool2d, and AdaptiveAvgPool2d operating directly on 5-channel multispectral canopy rasters (B, G, R, RE, NIR).
+- **Explainability**:
+  - Gradient-weighted feature attributions (saliency) $\frac{\partial \text{logit}}{\partial z_i} \times z_i$ quantifying input sensitivities.
+  - Grad-CAM (Gradient-weighted Class Activation Mapping) on 2D canopy rasters, generating spatial heatmaps that locate disease necrotic foci and pest defoliation patches across the field.
+- **Evaluation**: Scores 0.860 raw accuracy and 0.889 accuracy on decided plots with 0.900 coverage under uncertainty gating.
+
 ## 6. Reasoning under uncertainty (gating)
 Applied in `predict_with_uncertainty()` in this order:
 1. **Quality blockers** (classifier not run):

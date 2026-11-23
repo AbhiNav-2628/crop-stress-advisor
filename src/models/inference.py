@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 
 MODE_LABELS = {
     "ml_demo": "Demonstration ML model (logistic regression fitted to synthetic data)",
+    "cnn_deep_learning": "Deep Learning CNN (Convolutional Neural Network)",
     "rule_based": "Transparent rule-based baseline",
 }
 
@@ -57,9 +58,21 @@ class Prediction:
 
 
 def build_classifier(mode: str, settings: dict) -> tuple[StressClassifier, list[str]]:
-    """Return (classifier, notices). Falls back to rules if the ML artifact is unusable."""
+    """Return (classifier, notices). Falls back to rules if the ML/CNN artifact is unusable."""
     notices = []
-    if mode == "ml_demo":
+    if mode == "cnn_deep_learning":
+        try:
+            from src.models.cnn_classifier import load_cnn_classifier
+            cnn_cfg = settings.get("cnn_model", {})
+            artifact_path = resolve_path(cnn_cfg.get("artifact_path", "models/demo_cnn_v1.pt"))
+            return load_cnn_classifier(artifact_path), notices
+        except Exception as error:
+            logger.warning("Falling back to the rule-based classifier: %s", error)
+            notices.append(
+                f"The CNN deep learning model could not be loaded ({error}). "
+                "The transparent rule-based baseline is being used instead."
+            )
+    elif mode == "ml_demo":
         try:
             artifact = load_artifact(resolve_path(settings["model"]["artifact_path"]))
             return LogisticRegressionClassifier(artifact), notices

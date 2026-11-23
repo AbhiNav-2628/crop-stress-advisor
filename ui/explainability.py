@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -67,6 +69,54 @@ def render() -> None:
             st.dataframe(pd.DataFrame(
                 [{"class": c, "score": round(v, 3)} for c, v in sorted(logits.items(), key=lambda i: -i[1])]
             ), hide_index=True)
+
+    elif method == "cnn_explanation":
+        st.subheader("Deep Learning CNN: gradient-weighted feature attributions (saliency)")
+        target = result.prediction.explanation.get("explained_class", result.prediction.category)
+        st.plotly_chart(_contribution_chart(explanation["contributions"], target))
+        st.markdown(
+            "**How to read this.** The Deep Learning Convolutional Neural Network (CNN) computes "
+            "gradient-weighted feature attributions (input saliency: $\\frac{\\partial \\text{logit}}{\\partial z_i} \\times z_i$). "
+            "Bars indicate how strongly each normalized multispectral feature influenced the neural network's decision for the predicted stress class. "
+            "Positive values (blue) pulled the network toward this diagnosis; negative values (red) resisted it."
+        )
+        st.caption(
+            f"Architecture: {result.prediction.explanation.get('model_architecture', 'Multispectral CNN')} "
+            f"· Inference device: {result.prediction.explanation.get('device', 'cpu')}"
+        )
+        table = pd.DataFrame(explanation["contributions"])
+        table["value"] = table["value"].map(lambda v: fmt(v, 4))
+        table = table.round({"zscore": 2, "contribution": 3})
+        st.dataframe(table[["feature", "value", "zscore", "contribution", "description"]], hide_index=True)
+        with st.expander("Neural network class logits"):
+            logits = result.prediction.explanation.get("logits", {})
+            st.dataframe(pd.DataFrame(
+                [{"class": c, "logit": round(v, 3)} for c, v in sorted(logits.items(), key=lambda i: -i[1])]
+            ), hide_index=True)
+
+        if result.sample.kind == "raster":
+            with st.expander("🔍 2D Spatial Canopy Grad-CAM Activation Map", expanded=False):
+                st.write(
+                    "Grad-CAM (Gradient-weighted Class Activation Mapping) visualizes the spatial focus "
+                    "of the 2D CNN across the canopy plot. Warmer areas (yellow/red) highlight localized "
+                    "canopy lesions, defoliation patches, or spatial gradients that triggered the diagnosis."
+                )
+                from ui.common import get_classifier
+                classifier, _ = get_classifier(st.session_state.mode)
+                if hasattr(classifier, "predict_spatial_raster"):
+                    cube = np.stack([
+                        result.sample.bands.get(b, np.zeros_like(result.sample.valid_mask, dtype="float32"))
+                        for b in ["blue", "green", "red", "red_edge", "nir"]
+                    ])
+                    _, heatmap = classifier.predict_spatial_raster(cube)
+                    if heatmap is not None:
+                        fig_cam = px.imshow(
+                            heatmap, color_continuous_scale="Magma",
+                            labels=dict(color="Activation"),
+                            title=f"2D Spatial CNN Grad-CAM Activation ({category_label(target)})",
+                        )
+                        fig_cam.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=10))
+                        st.plotly_chart(fig_cam)
 
     elif method == "rule_trace":
         st.subheader("Rule trace (checked in order, first fully matched rule decides)")

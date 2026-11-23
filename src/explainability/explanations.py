@@ -85,17 +85,25 @@ def explain_prediction(prediction: Prediction, features: dict) -> dict:
         )
         return explanation
 
-    if explanation["method"] == "linear_contributions":
+    if explanation["method"] in ("linear_contributions", "cnn_explanation"):
         rows = _contribution_rows(prediction.explanation, features)
         explanation["contributions"] = rows
         explanation["supporting"] = [r for r in rows if r["contribution"] > 0][:3]
         explanation["opposing"] = [r for r in rows if r["contribution"] < 0][:3]
         target = prediction.explanation["explained_class"]
         top = ", ".join(r["feature"] for r in explanation["supporting"]) or "none"
-        explanation["headline"] = (
-            f"The model's score for '{target}' was raised most by: {top} "
-            "(relative to an average synthetic training plot)."
-        )
+        if explanation["method"] == "cnn_explanation":
+            explanation["headline"] = (
+                f"The CNN score for '{target}' was driven most by: {top} "
+                "(gradient-weighted feature attributions)."
+            )
+            if "spatial_activation" in prediction.explanation:
+                explanation["spatial_activation"] = prediction.explanation["spatial_activation"]
+        else:
+            explanation["headline"] = (
+                f"The model's score for '{target}' was raised most by: {top} "
+                "(relative to an average synthetic training plot)."
+            )
 
     elif explanation["method"] == "rule_trace":
         trace = prediction.explanation["trace"]

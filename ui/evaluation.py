@@ -16,6 +16,8 @@ from src.pipeline import compute_sample_features
 from ui.common import SERIES_BLUE, current_results, get_classifier, get_settings
 
 CONFIG_LABELS = {
+    "cnn_raw": "Deep Learning CNN, raw argmax (no gating)",
+    "cnn_with_uncertainty_gating": "Deep Learning CNN with uncertainty gating",
     "ml_raw": "ML model, raw argmax (no gating)",
     "ml_with_uncertainty_gating": "ML model with uncertainty gating",
     "rule_based_with_gating": "Rule-based baseline with gating",
@@ -75,14 +77,17 @@ def fresh_synthetic_evaluation(n_per_class: int, seed: int) -> dict:
     mapping = next(iter(settings["band_presets"].values()))
     ml, _ = get_classifier("ml_demo")
     rules, _ = get_classifier("rule_based")
-    y_true, ml_pred, rule_pred = [], [], []
+    cnn, _ = get_classifier("cnn_deep_learning")
+    y_true, ml_pred, rule_pred, cnn_pred = [], [], [], []
     for i, (scenario, cube) in enumerate(generate_dataset(n_per_class, seed)):
         sample = sample_from_raster(RasterInput(cube, None, f"eval-{i}", "synthetic"), mapping, settings)
         _, _, features = compute_sample_features(sample, settings)
         y_true.append(scenario)
         ml_pred.append(predict_with_uncertainty(features, ml, settings).category)
         rule_pred.append(predict_with_uncertainty(features, rules, settings).category)
+        cnn_pred.append(predict_with_uncertainty(features, cnn, settings).category)
     return {
+        "cnn_with_uncertainty_gating": classification_metrics(y_true, cnn_pred, SCENARIOS),
         "ml_with_uncertainty_gating": classification_metrics(y_true, ml_pred, SCENARIOS),
         "rule_based_with_gating": classification_metrics(y_true, rule_pred, SCENARIOS),
     }
@@ -98,38 +103,47 @@ def render() -> None:
     )
 
     settings = get_settings()
-    metrics = load_metrics(resolve_path(settings["model"]["metrics_path"]))
-    st.subheader("1 · Held-out synthetic test set (saved when the demo model was fitted)")
-    if metrics is None:
-        st.warning("Metrics file not found. Run `python scripts/train_demo_model.py` to recreate it.")
+    metrics = load_metrics(resolve_path(settings["model"]["metrics_path"])) or {}
+    cnn_metrics_path = settings.get("cnn_model", {}).get("metrics_path", "models/demo_cnn_v1_metrics.json")
+    cnn_metrics = load_metrics(resolve_path(cnn_metrics_path))
+    if cnn_metrics:
+        for k in ("cnn_raw", "cnn_with_uncertainty_gating"):
+            if k in cnn_metrics:
+                metrics[k] = cnn_metrics[k]
+
+    st.subheader("1 · Held-out synthetic test set (saved when models were fitted)")
+    if not metrics:
+        st.warning("Metrics file not found. Run `python scripts/train_demo_model.py` and `python scripts/train_cnn_model.py`.")
     else:
-        st.caption(f"{metrics['evaluation_data']} · created {metrics['created_at']} · n = {metrics['n_test']}")
+        st.caption(f"{metrics.get('evaluation_data', 'Synthetic plots')} · created {metrics.get('created_at', '')} · n = {metrics.get('n_test', 500)}")
         st.dataframe(_summary_table(metrics), hide_index=True)
         st.markdown(
             "*Coverage* is the share of plots the system was willing to classify. Uncertainty gating "
             "trades coverage for reliability: it abstains on hard cases, so accuracy on the decided "
             "plots rises."
         )
-        choice = st.radio("Details for", list(CONFIG_LABELS), format_func=CONFIG_LABELS.get, horizontal=True)
+        available_choices = [k for k in CONFIG_LABELS if k in metrics]
+        choice = st.radio("Details for", available_choices, format_func=CONFIG_LABELS.get, horizontal=True)
         left, right = st.columns(2)
         with left:
             st.plotly_chart(_confusion_figure(metrics[choice], "Confusion matrix (synthetic test set)"))
         with right:
             st.dataframe(_per_class_table(metrics[choice]), hide_index=True)
             st.caption("The pest vs disease confusion is expected: both appear as patchy vigour loss.")
-        st.plotly_chart(_importance_chart(metrics["permutation_importance"]))
-        st.caption("Permutation importance is a global, model-level measure on synthetic data; it says "
-                   "which inputs this model relies on, not which spectral properties matter biologically.")
+        if "permutation_importance" in metrics:
+            st.plotly_chart(_importance_chart(metrics["permutation_importance"]))
+            st.caption("Permutation importance is a global, model-level measure on synthetic data; it says "
+                       "which inputs this model relies on, not which spectral properties matter biologically.")
 
     st.subheader("2 · Run a fresh evaluation now")
-    st.write("Generates new synthetic plots with a seed of your choice and evaluates both classifiers live.")
+    st.write("Generates new synthetic plots with a seed of your choice and evaluates all classifiers live.")
     c1, c2 = st.columns(2)
     n = c1.slider("Plots per class", 20, 200, 60, step=20)
     seed = c2.number_input("Random seed", 0, 10_000, 101)
     if st.button("Run evaluation", type="primary"):
         live = fresh_synthetic_evaluation(int(n), int(seed))
         st.dataframe(_summary_table(live), hide_index=True)
-        st.plotly_chart(_confusion_figure(live["ml_with_uncertainty_gating"], "ML with gating - fresh synthetic plots"))
+        st.plotly_chart(_confusion_figure(live["cnn_with_uncertainty_gating"], "CNN with gating - fresh synthetic plots"))
 
     st.subheader("3 · Evaluate on the loaded labelled samples")
     labelled = [r for r in current_results()

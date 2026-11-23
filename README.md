@@ -73,8 +73,8 @@ Multispectral input (GeoTIFF / band files / CSV)
 
 | Option | Outcome |
 |---|---|
-| A - verified pretrained model | Not used. I am not aware of a publicly licensed, documented model that classifies crop-stress categories from multispectral vegetation-index features across crops and sensors, and RGB leaf-disease classifiers are not compatible with this input. No exhaustive search was carried out; the interface (`src/models/classifier.py`) is ready for such a model if one is found. |
-| **B - bundled classifier (default)** | Multinomial logistic regression fitted by `scripts/train_demo_model.py` to 1,500 synthetic plots, stored as JSON (`models/demo_logreg_v1.json`). Inference is plain NumPy. |
+| **Deep Learning CNN (Advanced DL Mode)** | Dual-branch PyTorch Deep Learning CNN: 1D Convolutional Network for biophysical feature vectors and 2D Spatial Convolutional Network with Grad-CAM for multispectral canopy rasters (`models/demo_cnn_v1.pt`). Selectable in the sidebar as `cnn_deep_learning`, achieving 86.0% raw accuracy and 88.9% accuracy on decided plots. |
+| **B - bundled ML classifier** | Multinomial logistic regression fitted by `scripts/train_demo_model.py` to 1,500 synthetic plots, stored as JSON (`models/demo_logreg_v1.json`). Inference is plain NumPy. |
 | **C - transparent fallback** | Ordered decision list (`RuleBasedClassifier`) with thresholds in `config/settings.yaml`. Selectable in the sidebar and used automatically if the model file is missing or damaged. |
 
 ## 5. System architecture
@@ -85,17 +85,17 @@ src/config.py              Loads config/settings.yaml and config/advisory_rules.
 src/data/                  ingestion.py (read TIFF/CSV) · validation.py · preprocessing.py
                            synthetic.py (demo/training data generator)
 src/features/              vegetation_indices.py · feature_engineering.py
-src/models/                classifier.py (interface + 2 classifiers) · artifacts.py (JSON model I/O)
+src/models/                classifier.py · cnn_model.py · cnn_classifier.py · artifacts.py
                            inference.py (classifier choice + uncertainty gating) · evaluation.py
-src/explainability/        explanations.py
+src/explainability/        explanations.py (linear attributions + CNN saliency & Grad-CAM)
 src/advisory/              rule_engine.py
 src/reporting/             report_generator.py (JSON, CSV, PDF)
 src/pipeline.py            analyze_sample(): the whole chain for one sample
-scripts/                   generate_demo_data.py · train_demo_model.py (optional) · run_demo_cli.py
+scripts/                   generate_demo_data.py · train_demo_model.py · train_cnn_model.py · run_demo_cli.py
 config/                    settings.yaml · advisory_rules.yaml
 data/demo/                 bundled synthetic GeoTIFFs and CSVs (+ manifest.json, README.md)
-models/                    demo model artifact (JSON) + its synthetic evaluation metrics
-tests/                     pytest suite (108 tests)
+models/                    demo ML artifact (JSON) + CNN PyTorch model (.pt) + evaluation metrics
+tests/                     pytest suite (125 tests)
 docs/                      architecture, methodology, model card, limitations, syllabus mapping,
                            learning guide, report outline, test results, screenshots
 ```

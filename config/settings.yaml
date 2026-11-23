@@ -50,7 +50,11 @@ uncertainty:
 model:
   artifact_path: "models/demo_logreg_v1.json"
   metrics_path: "models/demo_logreg_v1_metrics.json"
-  default_mode: "ml_demo"      # "ml_demo" or "rule_based"
+  default_mode: "ml_demo"      # "ml_demo", "cnn_deep_learning", or "rule_based"
+
+cnn_model:
+  artifact_path: "models/demo_cnn_v1.pt"
+  metrics_path: "models/demo_cnn_v1_metrics.json"
 
 # Output categories. "inconclusive" is never predicted by a model directly;
 # it is assigned by the uncertainty and quality checks.

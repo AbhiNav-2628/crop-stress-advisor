@@ -8,3 +8,4 @@ PyYAML==6.0.3          # configuration and advisory rules
 tifffile==2026.10.15   # lightweight GeoTIFF reader/writer (no GDAL needed)
 fpdf2==2.8.9           # PDF report export
 pytest==9.1.1          # automated tests
+torch>=2.0.0           # Deep Learning CNN (Convolutional Neural Networks)

@@ -41,7 +41,9 @@ def load_demo_samples(settings: dict) -> list:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--mode", default="ml_demo", choices=["ml_demo", "rule_based"])
+    parser.add_argument(
+        "--mode", default="ml_demo", choices=["ml_demo", "cnn_deep_learning", "rule_based"]
+    )
     parser.add_argument("--out", type=Path, help="folder for JSON/CSV/PDF reports")
     args = parser.parse_args()
 
