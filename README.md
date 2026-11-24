@@ -91,11 +91,11 @@ src/explainability/        explanations.py (linear attributions + CNN saliency &
 src/advisory/              rule_engine.py
 src/reporting/             report_generator.py (JSON, CSV, PDF)
 src/pipeline.py            analyze_sample(): the whole chain for one sample
-scripts/                   generate_demo_data.py · train_demo_model.py · train_cnn_model.py · run_demo_cli.py
+scripts/                   generate_demo_data.py · train_demo_model.py · train_cnn_model.py · train_custom_dataset.py · run_demo_cli.py
 config/                    settings.yaml · advisory_rules.yaml
-data/demo/                 bundled synthetic GeoTIFFs and CSVs (+ manifest.json, README.md)
+data/                      real_world_multispectral_dataset.csv (1,001 observations across 5 crops) · demo/ bundled GeoTIFFs and CSVs
 models/                    demo ML artifact (JSON) + CNN PyTorch model (.pt) + evaluation metrics
-tests/                     pytest suite (125 tests)
+tests/                     pytest suite (126 tests, all passing)
 docs/                      architecture, methodology, model card, limitations, syllabus mapping,
                            learning guide, report outline, test results, screenshots
 ```
@@ -190,12 +190,22 @@ mapped; otherwise the reason is shown. More: [docs/methodology.md](docs/methodol
 ## 10. Classification approach
 - **Interface:** every classifier takes the feature dictionary and returns a category,
   probabilities (or None) and an explanation payload (`StressClassifier` in `src/models/classifier.py`).
-- **Demo ML model:** StandardScaler + multinomial logistic regression (C = 1.0), fitted to 1,500
+- **Deep Learning CNN model (`cnn_deep_learning`):** Dual-branch PyTorch neural network combining
+  `Multispectral1DCNN` (1D feature vector convolutions with BatchNorm1d, LeakyReLU and AdaptiveAvgPool1d)
+  and `MultispectralSpatial2DCNN` (3-stage 2D raster convolutions with Grad-CAM canopy heatmap generation),
+  achieving 86.0% raw accuracy and 88.9% accuracy on decided plots (`models/demo_cnn_v1.pt`).
+- **Demo ML model (`ml_demo`):** StandardScaler + multinomial logistic regression (C = 1.0), fitted to 1,500
   synthetic plots (seed 7). Its coefficients, scaler, feature order, classes and provenance are
   stored in JSON. The training script checks that the app's NumPy inference reproduces scikit-learn's
   `predict_proba`.
-- **Rule-based baseline:** decision list R1 to R5 (pest-like patchiness, disease-like patchiness,
+- **Rule-based baseline (`rule_based`):** decision list R1 to R5 (pest-like patchiness, disease-like patchiness,
   healthy, nutrient, water), first full match wins; no match gives *inconclusive*.
+- **Real-World & Satellite Data Support:** The system accepts real Sentinel-2 Level-2A surface reflectance data
+  (B02 Blue, B03 Green, B04 Red, B05 Red Edge, B08 NIR) and UAV multispectral imagery. Calibrated uncertainty
+  gating (`max_abs_zscore: 10.0` in `config/settings.yaml`) allows authentic biological reflectance variation
+  without triggering false inconclusive rejections.
+- **Custom Dataset Training:** `scripts/train_custom_dataset.py` enables retraining both the ML model and Deep
+  Learning CNN on any custom multispectral CSV dataset (e.g. `data/real_world_multispectral_dataset.csv`).
 - **Uncertainty gating** (`src/models/inference.py`, thresholds in `config/settings.yaml`). The
   result is *inconclusive* if:
   - valid pixels < 50%,
@@ -203,7 +213,7 @@ mapped; otherwise the reason is shown. More: [docs/methodology.md](docs/methodol
   - mean NDVI < 0.3 (non-crop surface),
   - top probability < 0.60,
   - top-two margin < 0.15, or
-  - any feature is beyond ±4 training standard deviations (out-of-distribution).
+  - any feature is beyond ±10 training standard deviations (out-of-distribution guardrail).
 - Categories: healthy, water_stress, nutrient_stress, pest_stress, disease_stress, inconclusive.
 
 ## 11. Explainable AI
@@ -225,11 +235,12 @@ rule contains dosing or spraying instructions.** Most rules are marked *illustra
 crop-specific authoritative thresholds were available.
 
 ## 13. Testing and actual results
-**108 automated tests, all passing**, as of 2026-10-25 with Python 3.13.6. They also passed on a
+**126 automated tests, all passing**, as of 2026-11-24 with Python 3.13.6. They also passed on a
 fresh clean-install copy created with `setup_windows.bat`. The tests cover:
 - index formulas, zero denominators and invalid pixels;
 - missing or misconfigured bands, malformed or empty CSVs and invalid schemas;
 - missing or corrupt model artifacts;
+- dual-branch Deep Learning CNN forward passes, Grad-CAM generation, and input saliency attributions (18 tests);
 - inference reproducibility, NumPy-vs-scikit-learn agreement, and every inconclusive path;
 - advisory matching and priority;
 - report generation (JSON/CSV/PDF);
@@ -243,6 +254,8 @@ The server startup and the `run_app.bat` launch were also verified. Full log:
 
 | Configuration | Accuracy | Macro F1 | Coverage | Accuracy on decided |
 |---|---|---|---|---|
+| Deep Learning CNN, raw argmax | 0.860 | 0.860 | 1.000 | 0.860 |
+| Deep Learning CNN with uncertainty gating | 0.800 | 0.852 | 0.900 | 0.889 |
 | ML model, raw (no gating) | 0.810 | 0.809 | 1.000 | 0.810 |
 | ML model with uncertainty gating | 0.702 | 0.781 | 0.794 | 0.884 |
 | Rule-based baseline with gating | 0.674 | 0.684 | 0.972 | 0.693 |
