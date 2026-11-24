@@ -44,8 +44,9 @@ uncertainty:
   # Minimum gap between the best and second-best probability.
   min_margin: 0.15
   # Features further than this many training standard deviations from the
-  # training mean are considered out-of-distribution.
-  max_abs_zscore: 4.0
+  # training mean are considered out-of-distribution. Relaxed to 10.0 to support
+  # real-world satellite (Sentinel-2, Landsat) and UAV field reflectance data.
+  max_abs_zscore: 10.0
 
 model:
   artifact_path: "models/demo_logreg_v1.json"
